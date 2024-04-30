@@ -126,6 +126,15 @@ export class UserService {
         }
     }
 
+    async findUserDetailById(userId: number) {
+        const user = await this.userRepository.findOne({
+            where: {
+                id: userId
+            }
+        })
+        return user
+    }
+
     async initData() {
         const user1 = new User();
         user1.username = "zhangsan";

@@ -6,6 +6,8 @@ import { EmailService } from 'src/email/email.service';
 import { LoginUserDto } from './dto/LoginUserDto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { RequireLogin, UserInfo } from 'src/custom.decorator';
+import { UserDetailVo } from './vo/user-info.vo';
 
 
 
@@ -128,6 +130,33 @@ export class UserController {
       throw new UnauthorizedException('token 已失效，请重新登录')
     }
   }
+
+  @Get('info')
+  @RequireLogin()
+  async info(@UserInfo('userId') userId: number) {
+    const user = await this.userService.findUserDetailById(userId);
+
+    const vo = new UserDetailVo()
+
+    vo.id = user.id;
+    vo.email = user.email;
+    vo.username = user.username;
+    vo.headPic = user.headPic;
+    vo.phoneNumber = user.phoneNumber;
+    vo.nickName = user.nickName;
+    vo.createTime = user.createTime;
+    vo.isFrozen = user.isFrozen;
+
+    return vo;
+  }
+
+
+  @Post(['update_password', 'admin/update_password'])
+  @RequireLogin()
+  async updatePassword() {
+    
+  }
+
 
   @Get('admin/refresh')
   async adminRefresh(@Query('refreshToken') refreshToken: string) {
