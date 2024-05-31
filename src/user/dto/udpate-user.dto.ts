@@ -6,6 +6,9 @@ export class UpdateUserDto {
     @ApiProperty()
     headPic: string;
 
+
+    
+
     @ApiProperty()
     nickName: string;
 

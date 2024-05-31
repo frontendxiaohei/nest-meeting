@@ -106,6 +106,7 @@ export class UserController {
     vo.accessToken = this.jwtService.sign({
       userId: vo.userInfo.id,
       username: vo.userInfo.username,
+      email: vo.userInfo.email,
       roles: vo.userInfo.roles,
       permissions: vo.userInfo.permissions
     }, {
@@ -128,6 +129,7 @@ export class UserController {
     vo.accessToken = this.jwtService.sign({
       userId: vo.userInfo.id,
       username: vo.userInfo.username,
+      email: vo.userInfo.email,
       roles: vo.userInfo.roles,
       permissions: vo.userInfo.permissions
     }, {
@@ -156,18 +158,20 @@ export class UserController {
   })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: '刷新成功'
+    description: '刷新成功',
+    type: RefreshTokenVo
   })
   @Get('refresh')
   async refresh(@Query('refreshToken') refreshToken: string) {
     try {
-      const data = this.jwtService.verify(refreshToken)
+      const data = this.jwtService.verify(refreshToken);
 
-      const user = await this.userService.findUserById(data.userId, false)
+      const user = await this.userService.findUserById(data.userId, false);
 
       const access_token = this.jwtService.sign({
         userId: user.id,
         username: user.username,
+        email: user.email,
         roles: user.roles,
         permissions: user.permissions
       }, {
@@ -186,9 +190,58 @@ export class UserController {
       vo.refresh_token = refresh_token;
 
       return vo;
+    } catch(e) {
+      throw new UnauthorizedException('token 已失效，请重新登录');
+    }
+  }
 
-    } catch (e) {
-      throw new UnauthorizedException('token 已失效，请重新登录')
+  @ApiQuery({
+    name: 'refreshToken',
+    type: String,
+    description: '刷新 token',
+    required: true,
+    example: 'xxxxxxxxyyyyyyyyzzzzz'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'token 已失效，请重新登录'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: '刷新成功',
+    type: RefreshTokenVo
+  })
+  @Get('admin/refresh')
+  async adminRefresh(@Query('refreshToken') refreshToken: string) {
+    try {
+      const data = this.jwtService.verify(refreshToken);
+
+      const user = await this.userService.findUserById(data.userId, true);
+
+      const access_token = this.jwtService.sign({
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+        roles: user.roles,
+        permissions: user.permissions
+      }, {
+        expiresIn: this.configService.get('jwt_access_token_expires_time') || '30m'
+      });
+
+      const refresh_token = this.jwtService.sign({
+        userId: user.id
+      }, {
+        expiresIn: this.configService.get('jwt_refresh_token_expres_time') || '7d'
+      });
+
+      const vo = new RefreshTokenVo();
+
+      vo.access_token = access_token;
+      vo.refresh_token = refresh_token;
+
+      return vo;
+    } catch(e) {
+      throw new UnauthorizedException('token 已失效，请重新登录');
     }
   }
 
@@ -219,7 +272,6 @@ export class UserController {
 
 
   @Post(['update_password', 'admin/update_password'])
-  @ApiBearerAuth()
   @ApiBody({
     type: UpdateUserPasswordDto
   })
@@ -227,14 +279,13 @@ export class UserController {
     type: String,
     description: '验证码已失效/不正确'
   })
-  @RequireLogin()
-  async updatePassword(@UserInfo('userId') userId: number, @Body() passwordDto: UpdateUserPasswordDto) {
+  async updatePassword(@Body() passwordDto: UpdateUserPasswordDto) {
     // console.log(passwordDto);
     // return 'success';
-    return await this.userService.updatePassword(userId, passwordDto);
+    return await this.userService.updatePassword(passwordDto);
   }
 
-
+  @Get('update_password/captcha')
   async updatePasswordCaptcha(@Query("address") address: string) {
     const code = Math.random().toString().slice(2, 8)
 
@@ -269,18 +320,18 @@ export class UserController {
   }
 
   @ApiBearerAuth()
-  @ApiQuery({
-    name: 'address',
-    description: '邮箱地址',
-    type: String
-  })
+  // @ApiQuery({
+  //   name: 'address',
+  //   description: '邮箱地址',
+  //   type: String
+  // })
   @ApiResponse({
     type: String,
     description: '发送成功'
   })
   @RequireLogin()
   @Get('update/captcha')
-  async updateCaptcha(@Query('address') address: string) {
+  async updateCaptcha(@UserInfo('email') address: string) {
     const code = Math.random().toString().slice(2, 8);
 
     await this.redisService.set(`update_user_captcha_${address}`, code, 10 * 60);

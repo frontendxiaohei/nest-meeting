@@ -12,6 +12,12 @@ export class UpdateUserPasswordDto {
     @ApiProperty()
     password: string
 
+    @IsNotEmpty({
+        message: '用户名不能为空'
+    })
+    @ApiProperty()
+    username: string;
+
     @IsEmail({}, {
         message: "不是合法的邮箱格式"
     })
